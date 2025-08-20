@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
@@ -6,77 +5,61 @@ const cors = require('cors');
 
 const app = express();
 
-// 🌐 Nur diese Domain darf zugreifen:
+// 🌐 Liste der erlaubten Domains für CORS-Anfragen
+// ⚠️ Füge hier nur deine eigenen Domains hinzu.
 const allowedOrigins = [
   'https://mattisweb.de',
+  'https://www.mattisweb.de', // Wichtig: Füge www. hinzu
   'https://hyper-b.mattisweb.de'
 ];
 
+// 🛡️ Verwende die offizielle `cors` Middleware, um den Zugriff
+//    von den oben genannten Origins zu erlauben.
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS BLOCKED: code 403 Forbidden!'));
-    }
-  }
+  origin: allowedOrigins
 }));
 
 app.use(express.json());
 
-// 🛡️ Zusätzlicher Schutz: Blockiere direkte Aufrufe ohne erlaubten Referer/Origin
-app.use((req, res, next) => {
-  const origin = req.get('origin') || '';
-  const referer = req.get('referer') || '';
-
-  const isAllowed = allowedOrigins.some(o =>
-    origin.startsWith(o) || referer.startsWith(o)
-  );
-
-  if (isAllowed) {
-    next();
-  } else {
-    res.status(403).json({ error: 'Access only allowed via mattisweb.de or hyper-b.mattisweb.de' });
-  }
-});
-
-
 const Skey = process.env.SHAPES_KEY;
 const NKey = process.env.NEWS_KEY;
 
-// 🔁 Hypixel Guild-Stats weiterleiten
+// 📰 News API-Endpunkt
 app.get('/api/news', async (req, res) => {
   try {
-    const news = req.query.name;      
-    const lagu = req.query.lang;      
+    const news = req.query.name;
+    const lagu = req.query.lang;
 
-    const result = await axios.get(`https://newsapi.org/v2/everything`, {
+    // Serverseitiger Aufruf an newsapi.org. CORS wird hier nicht angewendet.
+    const result = await axios.get('https://newsapi.org/v2/everything', {
       params: {
         q: news,
         language: lagu,
-        sortBy: "publishedAt",
+        sortBy: 'publishedAt',
         apiKey: NKey
       }
     });
 
     res.json(result.data);
   } catch (e) {
-    res.status(500).json({ error: 'News API Error', detail: e.message });
+    // Fange den Statuscode der externen API ab, wenn verfügbar.
+    const statusCode = e.response ? e.response.status : 500;
+    res.status(statusCode).json({ error: 'News API Error', detail: e.message });
   }
 });
 
-// AI 
+// 🤖 AI API-Endpunkt
 app.get('/api/ai', async (req, res) => {
   try {
     const { message, sender, shapeUsername } = req.query;
 
     const result = await axios.post(
-      "https://api.shapes.inc/v1/chat/completions",
+      'https://api.shapes.inc/v1/chat/completions',
       {
         model: `shapesinc/${shapeUsername}`,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: message,
           },
         ],
@@ -84,20 +67,20 @@ app.get('/api/ai', async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${Skey}`,
-          "Content-Type": "application/json",
-          "X-User-Id": sender, 
+          'Content-Type': 'application/json',
+          'X-User-Id': sender,
         },
       }
     );
 
     res.json(result.data);
   } catch (e) {
+    const statusCode = e.response ? e.response.status : 500;
     res
-      .status(500)
-      .json({ error: "Shapes API Error", detail: e.message });
+      .status(statusCode)
+      .json({ error: 'Shapes API Error', detail: e.message });
   }
 });
 
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy: ${PORT}`));
+app.listen(PORT, () => console.log(`Proxy läuft auf Port: ${PORT}`));
