@@ -5,19 +5,8 @@ const cors = require('cors');
 
 const app = express();
 
-// 🌐 Liste der erlaubten Domains für CORS-Anfragen
-// ⚠️ Füge hier nur deine eigenen Domains hinzu.
-const allowedOrigins = [
-  'https://mattisweb.de',
-  'https://www.mattisweb.de', // Wichtig: Füge www. hinzu
-  'https://hyper-b.mattisweb.de'
-];
-
-// 🛡️ Verwende die offizielle `cors` Middleware, um den Zugriff
-//    von den oben genannten Origins zu erlauben.
-app.use(cors({
-  origin: allowedOrigins
-}));
+// Sicherheitsmaßnahmen (CORS-Konfiguration) wurde entfernt
+app.use(cors()); // Erlaubt alle Origins. ⚠️ NUR FÜR TESTZWECKE!
 
 app.use(express.json());
 
@@ -30,7 +19,6 @@ app.get('/api/news', async (req, res) => {
     const news = req.query.name;
     const lagu = req.query.lang;
 
-    // Serverseitiger Aufruf an newsapi.org. CORS wird hier nicht angewendet.
     const result = await axios.get('https://newsapi.org/v2/everything', {
       params: {
         q: news,
@@ -42,7 +30,6 @@ app.get('/api/news', async (req, res) => {
 
     res.json(result.data);
   } catch (e) {
-    // Fange den Statuscode der externen API ab, wenn verfügbar.
     const statusCode = e.response ? e.response.status : 500;
     res.status(statusCode).json({ error: 'News API Error', detail: e.message });
   }
